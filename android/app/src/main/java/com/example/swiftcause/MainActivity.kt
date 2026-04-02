@@ -182,8 +182,15 @@ fun KioskMainContent(
                 onCampaignClick = { campaign ->
                     viewModel.selectCampaign(campaign)
                 },
-                onAmountClick = { campaign, _ ->
-                    viewModel.selectCampaign(campaign)
+                onAmountClick = { campaign, amount ->
+                    // Quick donate: directly trigger payment with clicked amount
+                    handleDonation(
+                        campaign = campaign,
+                        amount = amount * 100, // Convert to minor units (cents/pence)
+                        isRecurring = false,
+                        interval = null,
+                        paymentViewModel = paymentViewModel
+                    )
                 },
                 onDonateClick = { campaign ->
                     viewModel.selectCampaign(campaign)
