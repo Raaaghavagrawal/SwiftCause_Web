@@ -67,7 +67,21 @@ class CampaignRepository(
                 }
             }
             
-            Result.success(campaigns.sortedByDescending { it.raised })
+            // Enrich campaigns with organization currency
+            val enrichedCampaigns = campaigns.map { campaign ->
+                if (campaign.organizationId.isNotEmpty()) {
+                    val orgCurrency = getOrganizationCurrency(campaign.organizationId)
+                    if (orgCurrency != null) {
+                        campaign.copy(currency = orgCurrency)
+                    } else {
+                        campaign
+                    }
+                } else {
+                    campaign
+                }
+            }
+            
+            Result.success(enrichedCampaigns.sortedByDescending { it.raised })
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -84,7 +98,23 @@ class CampaignRepository(
                 .await()
             
             if (doc.exists()) {
-                Result.success(mapDocumentToCampaign(doc.id, doc.data))
+                val campaign = mapDocumentToCampaign(doc.id, doc.data)
+                
+                // Enrich with organization currency
+                val enrichedCampaign = campaign?.let {
+                    if (it.organizationId.isNotEmpty()) {
+                        val orgCurrency = getOrganizationCurrency(it.organizationId)
+                        if (orgCurrency != null) {
+                            it.copy(currency = orgCurrency)
+                        } else {
+                            it
+                        }
+                    } else {
+                        it
+                    }
+                }
+                
+                Result.success(enrichedCampaign)
             } else {
                 Result.success(null)
             }
@@ -95,6 +125,24 @@ class CampaignRepository(
     
     private fun getStatus(data: Map<String, Any>?): String {
         return data?.get("status") as? String ?: "active"
+    }
+    
+    /**
+     * Fetches the currency from organization document
+     */
+    private suspend fun getOrganizationCurrency(organizationId: String): String? {
+        return try {
+            val orgDoc = firestore.collection("organizations")
+                .document(organizationId)
+                .get()
+                .await()
+            
+            val currency = orgDoc.data?.get("currency") as? String
+            currency?.lowercase() // Convert to lowercase for Stripe
+        } catch (e: Exception) {
+            android.util.Log.e("CampaignRepository", "Failed to fetch organization currency", e)
+            null
+        }
     }
     
     @Suppress("UNCHECKED_CAST")
@@ -144,9 +192,10 @@ class CampaignRepository(
             raised = raised,
             goal = goal,
             predefinedAmounts = predefinedAmounts,
-            currency = "USD", // TODO: Get from organization settings
+            currency = organizationInfo?.get("currency") as? String ?: data["currency"] as? String ?: "USD",
             enableRecurring = configuration?.get("enableRecurring") as? Boolean ?: false,
-            organizationName = organizationInfo?.get("name") as? String ?: ""
+            organizationName = organizationInfo?.get("name") as? String ?: "",
+            organizationId = data["organizationId"] as? String ?: ""
         )
     }
 }

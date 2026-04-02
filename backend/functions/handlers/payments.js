@@ -195,7 +195,8 @@ const createKioskPaymentIntent = (req, res) => {
         return res.status(400).send({error: "Org not onboarded with Stripe"});
       }
 
-      // 1. Create or reuse a Customer
+      // Create a Customer for tracking donations and supporting recurring payments
+      // Note: Link will appear if customer has an email, but that's okay for kiosk use
       const customer = await stripeClient.customers.create({
         email: donor?.email || undefined,
         name: donor?.name || undefined,
@@ -211,6 +212,11 @@ const createKioskPaymentIntent = (req, res) => {
           currency,
           customer: customer.id,
           payment_method_types: ["card"],
+          payment_method_options: {
+            card: {
+              request_three_d_secure: "automatic",
+            },
+          },
           transfer_data: {destination: stripeAccountId},
           metadata: {...canonicalMetadata, platform: "kiosk", frequency: "once"},
         });

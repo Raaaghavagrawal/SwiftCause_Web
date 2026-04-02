@@ -13,7 +13,8 @@ data class Campaign(
     val predefinedAmounts: List<Long> = emptyList(), // in major units
     val currency: String = "USD",
     val enableRecurring: Boolean = false,
-    val organizationName: String = ""
+    val organizationName: String = "",
+    val organizationId: String = "" // Organization ID for payment metadata
 ) {
     fun getProgressPercentage(): Float {
         if (goal == 0L) return 0f

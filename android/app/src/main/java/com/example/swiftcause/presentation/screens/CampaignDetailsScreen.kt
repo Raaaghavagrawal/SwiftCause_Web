@@ -256,9 +256,11 @@ fun CampaignDetailsScreen(
             onRecurringToggle = { isRecurring = it },
             onIntervalSelected = { selectedInterval = it },
             onDonateClick = {
-                val amount = if (selectedAmount > 0) selectedAmount else customAmount.toLongOrNull() ?: 0L
-                if (amount > 0) {
-                    onDonateClick(amount, isRecurring, if (isRecurring) selectedInterval else null)
+                val amountInMajorUnits = if (selectedAmount > 0) selectedAmount else customAmount.toLongOrNull() ?: 0L
+                if (amountInMajorUnits > 0) {
+                    // Convert to minor units (cents/pence) by multiplying by 100
+                    val amountInMinorUnits = amountInMajorUnits * 100
+                    onDonateClick(amountInMinorUnits, isRecurring, if (isRecurring) selectedInterval else null)
                 }
             },
             modifier = Modifier.align(Alignment.BottomCenter)
