@@ -28,10 +28,16 @@ class CampaignListViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             
+            // Fetch organization currency once at the start
+            val orgCurrency = kioskSession.organizationId?.let {
+                repository.getOrganizationCurrency(it)
+            }
+            
             val result = repository.getCampaignsForKiosk(
                 assignedCampaignIds = kioskSession.assignedCampaigns,
                 organizationId = kioskSession.organizationId,
-                showAllCampaigns = kioskSession.settings.showAllCampaigns
+                showAllCampaigns = kioskSession.settings.showAllCampaigns,
+                organizationCurrency = orgCurrency  // Pass cached currency
             )
             
             result.fold(

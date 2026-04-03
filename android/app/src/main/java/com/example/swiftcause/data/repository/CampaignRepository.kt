@@ -13,11 +13,14 @@ class CampaignRepository(
      * Filters to only show active campaigns that are either:
      * - Assigned to this specific kiosk
      * - Marked as global (isGlobal = true)
+     * 
+     * @param organizationCurrency Currency fetched from organization (pass from kiosk session to avoid re-fetching)
      */
     suspend fun getCampaignsForKiosk(
         assignedCampaignIds: List<String>,
         organizationId: String?,
-        showAllCampaigns: Boolean = false
+        showAllCampaigns: Boolean = false,
+        organizationCurrency: String? = null
     ): Result<List<Campaign>> {
         return try {
             val campaigns = mutableListOf<Campaign>()
@@ -67,15 +70,11 @@ class CampaignRepository(
                 }
             }
             
-            // Enrich campaigns with organization currency
+            // Enrich campaigns with organization currency (use cached value if provided)
+            val orgCurrency = organizationCurrency ?: organizationId?.let { getOrganizationCurrency(it) }
             val enrichedCampaigns = campaigns.map { campaign ->
-                if (campaign.organizationId.isNotEmpty()) {
-                    val orgCurrency = getOrganizationCurrency(campaign.organizationId)
-                    if (orgCurrency != null) {
-                        campaign.copy(currency = orgCurrency)
-                    } else {
-                        campaign
-                    }
+                if (orgCurrency != null) {
+                    campaign.copy(currency = orgCurrency)
                 } else {
                     campaign
                 }
@@ -129,8 +128,9 @@ class CampaignRepository(
     
     /**
      * Fetches the currency from organization document
+     * Public method to allow caching by ViewModel
      */
-    private suspend fun getOrganizationCurrency(organizationId: String): String? {
+    suspend fun getOrganizationCurrency(organizationId: String): String? {
         return try {
             val orgDoc = firestore.collection("organizations")
                 .document(organizationId)

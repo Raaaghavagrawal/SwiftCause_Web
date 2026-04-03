@@ -5,16 +5,27 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.swiftcause.domain.models.Campaign
 import com.example.swiftcause.domain.models.KioskSession
@@ -142,61 +153,114 @@ fun KioskMainContent(
         viewModel.loadCampaigns(kioskSession)
     }
     
-    when {
-        uiState.selectedCampaign != null -> {
-            val campaign = uiState.selectedCampaign!!
-            CampaignDetailsScreen(
-                campaign = campaign,
-                onBackClick = { viewModel.clearSelectedCampaign() },
-                onDonateClick = { amount, isRecurring, interval ->
-                    handleDonation(
-                        campaign = campaign,
-                        amount = amount,
-                        isRecurring = isRecurring,
-                        interval = interval,
-                        paymentViewModel = paymentViewModel
-                    )
+    // Show loading overlay when payment intent is being created
+    Box(modifier = modifier.fillMaxSize()) {
+        when {
+            uiState.selectedCampaign != null -> {
+                val campaign = uiState.selectedCampaign!!
+                CampaignDetailsScreen(
+                    campaign = campaign,
+                    onBackClick = { viewModel.clearSelectedCampaign() },
+                    onDonateClick = { amount, isRecurring, interval ->
+                        handleDonation(
+                            campaign = campaign,
+                            amount = amount,
+                            isRecurring = isRecurring,
+                            interval = interval,
+                            paymentViewModel = paymentViewModel
+                        )
+                    }
+                )
+            }
+            uiState.isLoading -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
                 }
-            )
-        }
-        uiState.isLoading -> {
-            Box(
-                modifier = modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
+            }
+            uiState.error != null -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = uiState.error ?: "Error loading campaigns")
+                }
+            }
+            else -> {
+                CampaignListScreen(
+                    campaigns = uiState.campaigns,
+                    isLoading = false,
+                    onCampaignClick = { campaign ->
+                        viewModel.selectCampaign(campaign)
+                    },
+                    onAmountClick = { campaign, amount ->
+                        // Quick donate: directly trigger payment with clicked amount
+                        handleDonation(
+                            campaign = campaign,
+                            amount = amount * 100, // Convert to minor units (cents/pence)
+                            isRecurring = false,
+                            interval = null,
+                            paymentViewModel = paymentViewModel
+                        )
+                    },
+                    onDonateClick = { campaign ->
+                        viewModel.selectCampaign(campaign)
+                    }
+                )
             }
         }
-        uiState.error != null -> {
+        
+        // Modern loading overlay when preparing payment intent
+        if (paymentState is PaymentState.Loading) {
             Box(
-                modifier = modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.6f))
+                    .clickable(enabled = false) {}, // Block interactions
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = uiState.error ?: "Error loading campaigns")
+                androidx.compose.material3.Surface(
+                    modifier = Modifier
+                        .padding(32.dp)
+                        .width(280.dp),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+                    color = androidx.compose.ui.graphics.Color.White,
+                    shadowElevation = 8.dp,
+                    tonalElevation = 2.dp
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(vertical = 40.dp, horizontal = 24.dp)
+                    ) {
+                        // Modern circular progress with custom size
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(48.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            strokeWidth = 4.dp
+                        )
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
+                        
+                        Text(
+                            text = "Preparing Payment",
+                            fontSize = 18.sp,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        Text(
+                            text = "Please wait...",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                }
             }
-        }
-        else -> {
-            CampaignListScreen(
-                campaigns = uiState.campaigns,
-                isLoading = false,
-                onCampaignClick = { campaign ->
-                    viewModel.selectCampaign(campaign)
-                },
-                onAmountClick = { campaign, amount ->
-                    // Quick donate: directly trigger payment with clicked amount
-                    handleDonation(
-                        campaign = campaign,
-                        amount = amount * 100, // Convert to minor units (cents/pence)
-                        isRecurring = false,
-                        interval = null,
-                        paymentViewModel = paymentViewModel
-                    )
-                },
-                onDonateClick = { campaign ->
-                    viewModel.selectCampaign(campaign)
-                },
-                modifier = modifier
-            )
         }
     }
 }
