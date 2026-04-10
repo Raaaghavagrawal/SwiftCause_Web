@@ -30,6 +30,7 @@ const {
   createExpressDashboardLink,
 } = require('./handlers/payments');
 const { exportGiftAidDeclarations, downloadGiftAidExportBatchFile } = require('./handlers/giftAid');
+const { exportDonations } = require('./handlers/donationsExport');
 const {
   createRecurringSubscription,
   cancelRecurringSubscription,
@@ -122,6 +123,7 @@ exports.createExpressDashboardLink = functions.https.onRequest(
 );
 exports.exportGiftAidDeclarations = functions.https.onRequest(exportGiftAidDeclarations);
 exports.downloadGiftAidExportBatchFile = functions.https.onRequest(downloadGiftAidExportBatchFile);
+exports.exportDonations = functions.https.onRequest(exportDonations);
 exports.createRecurringSubscription = functions.https.onRequest(
   { secrets: [stripeSecretKey] },
   createRecurringSubscription,
